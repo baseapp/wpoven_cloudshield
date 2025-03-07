@@ -1,0 +1,42 @@
+/**
+ * All of the CSS for your admin-specific functionality should be
+ * included in this file.
+ */
+
+#heading-login-protection {
+  background-color: #2d2e30;
+}
+
+#heading-login-protection h2 {
+  color: white;
+}
+
+#heading-ddos-protection {
+  background-color: #2d2e30;
+}
+
+#heading-ddos-protection h2 {
+  color: white;
+}
+
+#heading-crawler-protection {
+  background-color: #2d2e30;
+}
+
+#heading-crawler-protection h2 {
+  color: white;
+}
+
+#cloudshield-logs-table tbody tr {
+  height: 45px; /* Adjust as needed */
+}
+
+#cloudshield-logs-table thead tr {
+  height: 45px; /* Adjust as needed */
+}
+
+.row-checkbox {
+  margin-left: 10px; /* Adjust as needed */
+}
+
+

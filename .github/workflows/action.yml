@@ -1,0 +1,211 @@
+name: "Plugin Check and Create Release"
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      wp_version:
+        description: "WordPress version to test against"
+        required: true
+        default: "6.6.2"
+      plugin_version:
+        description: "Plugin version to release"
+        required: true
+        default: "1.0.0"
+
+env:
+  PLUGIN_SLUG: "wpoven-cloudshield"
+  WP_PATH: /var/www/html
+  PLUGIN_PATH: /var/www/html/wp-content/plugins/wpoven_cloudshield
+  WORDPRESS_URL: http://localhost
+  ADMIN_USER: admin
+  ADMIN_PASSWORD: Wpoven@baseapp1
+  ADMIN_EMAIL: admin@example.com
+
+jobs:
+  plugin-check:
+    name: WordPress Plugin Check
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.plugin-check.outputs.status }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.0"
+          extensions: mbstring, xml, mysql
+          coverage: none
+
+      - name: Verify PHP installation
+        run: php -v
+
+      - name: Start MySQL
+        run: |
+          sudo systemctl start mysql
+          mysql -e "CREATE DATABASE IF NOT EXISTS wordpress_test;" -uroot -proot
+
+      - name: Setup WordPress
+        run: |
+          # Download and extract WordPress
+          wget https://wordpress.org/latest.tar.gz
+          sudo tar -xzf latest.tar.gz -C /var/www/html --strip-components=1
+
+          # Configure wp-config.php
+          sudo cp $WP_PATH/wp-config-sample.php $WP_PATH/wp-config.php
+          sudo sed -i 's/database_name_here/wordpress_test/' $WP_PATH/wp-config.php
+          sudo sed -i 's/username_here/root/' $WP_PATH/wp-config.php
+          sudo sed -i 's/password_here/root/' $WP_PATH/wp-config.php
+
+          # Set permissions
+          sudo chown -R www-data:www-data $WP_PATH
+          sudo chmod -R 755 $WP_PATH
+          sudo service apache2 start
+
+      - name: Install WP-CLI
+        run: |
+          curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          chmod +x wp-cli.phar
+          sudo mv wp-cli.phar /usr/local/bin/wp
+
+      - name: Install WordPress Core
+        run: |
+          cd $WP_PATH
+          wp core install \
+            --url="$WORDPRESS_URL" \
+            --title="Test Site" \
+            --admin_user="$ADMIN_USER" \
+            --admin_password="$ADMIN_PASSWORD" \
+            --admin_email="$ADMIN_EMAIL" \
+            --skip-email
+
+      - name: Setup Plugin
+        run: |
+          sudo mkdir -p $PLUGIN_PATH
+          # Clone the repository into a temporary directory
+          TEMP_DIR=$(mktemp -d)
+          git clone https://github.com/baseapp/wpoven_cloudshield.git $TEMP_DIR
+          cd $TEMP_DIR
+          git submodule init
+          git submodule sync
+          git submodule update --init --recursive --force
+          # Move the contents of the source folder to the plugin path
+          sudo cp -r $TEMP_DIR/source/* $PLUGIN_PATH/
+          sudo chown -R www-data:www-data $PLUGIN_PATH
+          # Clean up the temporary directory
+          rm -rf $TEMP_DIR
+
+      - name: Activate and Verify Plugin
+        id: plugin-check
+        run: |
+          cd $WP_PATH
+          wp plugin activate wpoven_cloudshield
+          wp plugin verify-checksums wpoven_cloudshield
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Run Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          exclude-checks: |
+            i18n_usage
+            late_escaping
+          exclude-files: |
+            .gitignore
+            .gitmodules
+          exclude-directories: |
+            includes/libraries/redux-framework
+            includes/libraries/plugin-update-checker
+        env:
+          PLUGIN_DIR: ${{ env.PLUGIN_PATH }}
+          PLUGIN_SLUG: ${{ env.PLUGIN_SLUG }}
+          WP_VERSION: ${{ github.event.inputs.wp_version || 'latest' }}
+
+      - name: Verify Plugin Accessibility
+        run: |
+          SITE_URL="http://localhost"
+          PLUGIN_SETTINGS_PAGE="$SITE_URL/wp-admin/admin.php?page=wpoven-cloudshield"
+
+          MAIN_PAGE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$SITE_URL")
+          SETTINGS_PAGE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$PLUGIN_SETTINGS_PAGE")
+
+          if [ "$MAIN_PAGE_RESPONSE" != "200" ] || [ "$SETTINGS_PAGE_RESPONSE" != "200" ]; then
+            echo "Site accessibility check failed"
+            exit 1
+          fi
+
+  create-release:
+    name: Create Release
+    needs: plugin-check
+    if: needs.plugin-check.outputs.status == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set version variables
+        id: versions
+        run: |
+          RELEASE_DATE=$(date +'%Y-%m-%d')
+          PLUGIN_VERSION="${{ github.event.inputs.plugin_version || '1.0.0' }}"
+          ZIP_NAME="${{ env.PLUGIN_SLUG }}-${RELEASE_DATE}.zip"
+
+          echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
+          echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create plugin package
+        run: |
+          # Create releases directory
+          mkdir -p releases
+
+          # Create plugin zip
+          (cd source && zip -r "../releases/${{ steps.versions.outputs.zip_name }}" . -x ".*" -x "__MACOSX" -x "*.git*")
+
+          # Create copy for GitHub release
+          cp "releases/${{ steps.versions.outputs.zip_name }}" "./${{ steps.versions.outputs.zip_name }}"
+
+      - name: Update README
+        run: |
+          sed -i "s/\*\*Tested up to:\*\* [0-9.]*/**Tested up to:** ${{ github.event.inputs.wp_version || '6.6.2' }}/" README.md
+          sed -i "s/\*\*Stable tag:\*\* [0-9.]*/**Stable tag:** ${{ steps.versions.outputs.plugin_version }}/" README.md
+          sed -i "s|/releases/download/[0-9.]*/wpoven-cloudshield-[0-9-]*.zip|/releases/download/${{ steps.versions.outputs.plugin_version }}/${{ steps.versions.outputs.zip_name }}|" README.md
+
+          # Update README.txt
+          sed -i "s/Tested up to: [0-9.]*/Tested up to: ${{ github.event.inputs.wp_version || '6.6.2' }}/" README.txt
+          sed -i "s/Stable tag: [0-9.]*/Stable tag: ${{ steps.versions.outputs.plugin_version }}/" README.txt
+          sed -i "s|/releases/download/[0-9.]*/wpoven-cloudshield-[0-9-]*.zip|/releases/download/${{ steps.versions.outputs.plugin_version }}/${{ steps.versions.outputs.zip_name }}|" README.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.versions.outputs.zip_name }}
+          tag_name: ${{ steps.versions.outputs.plugin_version }}
+          name: "WPOven CloudShield v${{ steps.versions.outputs.plugin_version }}"
+          body: |
+            🚀 WPOven CloudShield Release v${{ steps.versions.outputs.plugin_version }}
+
+            Release Date: ${{ steps.versions.outputs.release_date }}
+            Tested with WordPress: ${{ github.event.inputs.wp_version || '6.6.2' }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md README.txt releases/
+          git commit -m "Release v${{ steps.versions.outputs.plugin_version }} - Update README and add release files" || echo "No changes to commit"
+          git push

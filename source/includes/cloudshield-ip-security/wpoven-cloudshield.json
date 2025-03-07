@@ -1,0 +1,29 @@
+{
+    "wpoven-cloudshield": {
+        "last_tab": "1",
+        "enable-log": "1",
+        "cloudshield-log-retention": "1",
+        "cloudshield-waf-method": "0",
+        "cloudshield-cf-auth-mode": "1",
+        "cloudshield-cf-email": "",
+        "cloudshield-cf-apikey": "Shyam@baseapp1",
+        "cloudshield-cf-apitoken": "",
+        "cloudshield-cf-whitelist-ip": "192.168.56.1, 127.0.0.1",
+        "cloudshield-cf-enable-captcha": "",
+        "cloudshield-cf-block-xmlrpc": "",
+        "cloudshield-cf-wrong-login": "0",
+        "cloudshield-login-block-request-rate": "5",
+        "cloudshield-cf-country-block": "1",
+        "cloudshield-country-list": [
+            "AL",
+            "AS"
+        ],
+        "cloudshield-cf-request-rate": "0",
+        "cloudshield-request-rate": "5",
+        "cloudshield-cf-ip-block": "",
+        "cloudshield-cf-block-non-seo": "",
+        "cloudshield-cf-block-ai-crawlers": "",
+        "cloudshield-cf-404-protection": "0"
+    },
+    "blocked_ip_logs": []
+}
