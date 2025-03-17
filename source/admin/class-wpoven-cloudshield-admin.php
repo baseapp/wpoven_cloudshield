@@ -1463,7 +1463,11 @@ class Wpoven_Cloudshield_Admin
 	{
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'cloudshield_logs';
-		$ip_list = $wpdb->get_col("SELECT DISTINCT ip_address FROM $table_name");
+
+		if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name) {
+			$ip_list = $wpdb->get_col("SELECT DISTINCT ip_address FROM $table_name");
+		}
+		
 		if ($wpdb->last_error) {
 			error_log('Error fetching IPs: ' . $wpdb->last_error);
 			return [];
