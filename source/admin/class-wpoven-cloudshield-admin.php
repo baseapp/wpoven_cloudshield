@@ -201,7 +201,7 @@ class Wpoven_Cloudshield_Admin
 
 		if (empty($wp_filesystem)) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
-			WP_Filesystem();
+			//WP_Filesystem();
 		}
 
 		$options = get_option('wpoven-cloudshield');
@@ -1455,11 +1455,6 @@ class Wpoven_Cloudshield_Admin
 		}
 
 		$csv_file_path = CLOUDSHIELD_PLUGIN_PATH . 'countries.csv';
-
-		// Check if the file exists
-		if (!$wp_filesystem->exists($csv_file_path)) {
-			return [];
-		}
 
 		// Read file contents
 		$file_contents = $wp_filesystem->get_contents($csv_file_path);
