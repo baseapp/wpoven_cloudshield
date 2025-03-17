@@ -80,9 +80,9 @@ jobs:
 
           # Configure wp-config.php
           sudo cp $WP_PATH/wp-config-sample.php $WP_PATH/wp-config.php
-          sudo sed -i 's/wordpress_test/' $WP_PATH/wp-config.php
-          sudo sed -i 's/root/' $WP_PATH/wp-config.php
-          sudo sed -i 's/root/' $WP_PATH/wp-config.php
+          sudo sed -i 's/database_name_here/wordpress_test/' $WP_PATH/wp-config.php
+          sudo sed -i 's/username_here/root/' $WP_PATH/wp-config.php
+          sudo sed -i 's/password_here/root/' $WP_PATH/wp-config.php
 
           # Set permissions
           sudo chown -R www-data:www-data $WP_PATH
