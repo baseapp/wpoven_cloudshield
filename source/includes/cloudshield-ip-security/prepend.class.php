@@ -36,7 +36,12 @@ $requestURI = $ipBlocker->getRequestUri();
 $userAgent = $ipBlocker->getUserAgent();
 
 // Check if the visitor IP is already blocked and if it's been blocked for more than 30 minutes
-date_default_timezone_set('UTC');
+$timezone = get_option('timezone_string');
+if (empty($timezone)) {
+    $timezone = 'UTC'; // Fallback if no timezone is set in WordPress
+}
+date_default_timezone_set($timezone);
+
 $currentTimestamp = time();
 $blockedForTooLong = false;
 $blockedIPAddresses = [];

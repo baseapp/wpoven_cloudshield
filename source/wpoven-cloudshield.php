@@ -103,7 +103,7 @@ function deactivate_wpoven_cloudshield()
 	$user_ini_path = ABSPATH . '.user.ini';
 
 	if (file_exists($user_ini_path)) {
-		if (!unlink($user_ini_path)) {
+		if (!wp_delete_file($user_ini_path)) {
 			error_log("Error: Failed to delete .user.ini at: " . $user_ini_path);
 		}
 	}
