@@ -49,8 +49,8 @@ jobs:
       - name: Start MySQL
         run: |
           sudo systemctl start mysql
-          mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS wordpress_test;"
-          mysql -uroot -proot -D wordpress_test -e "
+          mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS wordpress;"
+          mysql -uroot -proot -D wordpress -e "
           CREATE TABLE IF NOT EXISTS wp_cloudshield_logs (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             url TEXT NOT NULL,
@@ -60,7 +60,7 @@ jobs:
             timestamp DATETIME DEFAULT NULL,
             PRIMARY KEY (id)
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
-          mysql -uroot -proot -D wordpress_test -e "
+          mysql -uroot -proot -D wordpress -e "
           CREATE TABLE IF NOT EXISTS wp_cloudshield_blocked_ip_logs (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             ip_address VARCHAR(255) DEFAULT NULL,
@@ -80,7 +80,7 @@ jobs:
 
           # Configure wp-config.php
           sudo cp $WP_PATH/wp-config-sample.php $WP_PATH/wp-config.php
-          sudo sed -i 's/database_name_here/wordpress_test/' $WP_PATH/wp-config.php
+          sudo sed -i 's/database_name_here/wordpress/' $WP_PATH/wp-config.php
           sudo sed -i 's/username_here/root/' $WP_PATH/wp-config.php
           sudo sed -i 's/password_here/root/' $WP_PATH/wp-config.php
 
