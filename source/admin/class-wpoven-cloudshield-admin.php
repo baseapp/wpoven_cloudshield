@@ -197,13 +197,6 @@ class Wpoven_Cloudshield_Admin
 
 	function cloudshield_enable_php_waf_rules()
 	{
-		global $wp_filesystem;
-
-		if (empty($wp_filesystem)) {
-			require_once ABSPATH . 'wp-admin/includes/file.php';
-			//WP_Filesystem();
-		}
-
 		$options = get_option('wpoven-cloudshield');
 		$method = isset($options['cloudshield-waf-method']) ? $options['cloudshield-waf-method'] : 2;
 		if ($method == 0) {
@@ -218,10 +211,7 @@ class Wpoven_Cloudshield_Admin
 					error_log("Error: Failed to write to .user.ini at: " . $user_ini_path);
 					return;
 				}
-				// Check if the file exists before changing permissions
-				if ($wp_filesystem->exists($user_ini_path)) {
-					$wp_filesystem->chmod($user_ini_path, 0644);
-				}
+				chmod($user_ini_path, 0644);
 
 				$php_waf_enabled = update_option('cloudshield-php-waf-enabled', 1);
 				$return_array['status'] = 'ok';
@@ -1446,112 +1436,50 @@ class Wpoven_Cloudshield_Admin
 	 */
 	function cloudshield_load_country_list()
 	{
-		global $wp_filesystem;
-
-		// Ensure the WordPress filesystem API is initialized
-		if (empty($wp_filesystem)) {
-			require_once ABSPATH . 'wp-admin/includes/file.php';
-			WP_Filesystem();
-		}
-
 		$csv_file_path = CLOUDSHIELD_PLUGIN_PATH . 'countries.csv';
-
-		// Read file contents
-		$file_contents = $wp_filesystem->get_contents($csv_file_path);
-		if ($file_contents === false) {
-			return [];
+		if (!file_exists($csv_file_path)) {
+			return array();
 		}
-
-		$country_list = [];
-		$lines = explode("\n", trim($file_contents));
-
-		// Skip the first line (header)
-		array_shift($lines);
-
-		foreach ($lines as $line) {
-			$data = str_getcsv($line);
-			$country_code = isset($data[0]) ? trim($data[0]) : '';
-			$country_name = isset($data[1]) ? trim($data[1]) : $country_code;
-
-			if (!empty($country_code)) {
-				$country_list[$country_code] = $country_name;
+		$country_list = array();
+		if (($handle = fopen($csv_file_path, 'r')) !== FALSE) {
+			fgetcsv($handle);
+			while (($data = fgetcsv($handle)) !== FALSE) {
+				$country_code = isset($data[0]) ? trim($data[0]) : '';
+				$country_name = isset($data[1]) ? trim($data[1]) : $country_code;
+				if (!empty($country_code)) {
+					$country_list[$country_code] = $country_name;
+				}
 			}
+			fclose($handle);
 		}
 
 		return $country_list;
 	}
 
-
 	/**
 	 * Get all IPs from wp_cloudshield_logs table.
 	 */
-
 	function cloudshield_load_ip_list()
 	{
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'cloudshield_logs';
-
-		// Check if table exists
-		$table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
-		if (!$table_exists) {
-			error_log('CloudShield Logs table does not exist.');
-			return [];
-		}
-
-		// Fetch distinct IP addresses
 		$ip_list = $wpdb->get_col("SELECT DISTINCT ip_address FROM $table_name");
-
-		// Check for SQL errors
 		if ($wpdb->last_error) {
 			error_log('Error fetching IPs: ' . $wpdb->last_error);
 			return [];
 		}
-
-		// Ensure $ip_list is an array
-		if (!is_array($ip_list)) {
-			return [];
-		}
-
-		// Filter and sanitize IPs
 		$ip_list = array_filter($ip_list, function ($ip) {
 			return !empty($ip) && filter_var($ip, FILTER_VALIDATE_IP);
 		});
-
-		// Remove duplicates
 		$ip_list = array_unique($ip_list);
 
-		// Format options for return
 		$ip_options = [];
 		foreach ($ip_list as $ip) {
-			$ip_options[$ip] = $ip;
+			$ip_options[$ip] = $ip; // Key and value are the same (IP address)
 		}
 
 		return $ip_options;
 	}
-
-
-
-	// function cloudshield_load_ip_list()
-	// {
-	// 	global $wpdb;
-	// 	$table_name = $wpdb->prefix . 'cloudshield_logs';
-	// 	$ip_list = $wpdb->get_col("SELECT DISTINCT ip_address FROM $table_name");
-	// 	if ($wpdb->last_error) {
-	// 		error_log('Error fetching IPs: ' . $wpdb->last_error);
-	// 		return [];
-	// 	}
-	// 	$ip_list = array_filter($ip_list, function ($ip) {
-	// 		return !empty($ip) && filter_var($ip, FILTER_VALIDATE_IP);
-	// 	});
-	// 	$ip_list = array_unique($ip_list);
-
-	// 	$ip_options = [];
-	// 	foreach ($ip_list as $ip) {
-	// 		$ip_options[$ip] = $ip; // Key and value are the same (IP address)
-	// 	}
-
-	// 	return $ip_options;
-	// }
 
 	/**
 	 * Set WPOven CloudShield WAF basic settings.
