@@ -20,7 +20,7 @@ env:
   PLUGIN_PATH: /var/www/html/wp-content/plugins/wpoven_cloudshield
   WORDPRESS_URL: http://localhost
   ADMIN_USER: admin
-  ADMIN_PASSWORD: Wpoven@baseapp1
+  ADMIN_PASSWORD: Admin@2024
   ADMIN_EMAIL: admin@example.com
 
 jobs:
@@ -49,7 +49,28 @@ jobs:
       - name: Start MySQL
         run: |
           sudo systemctl start mysql
-          mysql -e "CREATE DATABASE IF NOT EXISTS wordpress_test;" -uroot -proot
+          mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS wordpress_test;"
+          mysql -uroot -proot -D wordpress_test -e "
+          CREATE TABLE IF NOT EXISTS wp_cloudshield_logs (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            url TEXT NOT NULL,
+            status_code TEXT NOT NULL,
+            ip_address VARCHAR(255) DEFAULT NULL,
+            state VARCHAR(255) DEFAULT NULL,
+            timestamp DATETIME DEFAULT NULL,
+            PRIMARY KEY (id)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+          mysql -uroot -proot -D wordpress_test -e "
+          CREATE TABLE IF NOT EXISTS wp_cloudshield_blocked_ip_logs (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            ip_address VARCHAR(255) DEFAULT NULL,
+            status_code TEXT NULL,
+            ip_status TEXT NULL,
+            failed_attempts INT(11) DEFAULT 0,
+            blocked_at DATETIME DEFAULT NULL,
+            timestamp DATETIME DEFAULT NULL,
+            PRIMARY KEY (id)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
 
       - name: Setup WordPress
         run: |
@@ -59,9 +80,9 @@ jobs:
 
           # Configure wp-config.php
           sudo cp $WP_PATH/wp-config-sample.php $WP_PATH/wp-config.php
-          sudo sed -i 's/database_name_here/wordpress_test/' $WP_PATH/wp-config.php
-          sudo sed -i 's/username_here/root/' $WP_PATH/wp-config.php
-          sudo sed -i 's/password_here/root/' $WP_PATH/wp-config.php
+          sudo sed -i 's/wordpress_test/' $WP_PATH/wp-config.php
+          sudo sed -i 's/root/' $WP_PATH/wp-config.php
+          sudo sed -i 's/root/' $WP_PATH/wp-config.php
 
           # Set permissions
           sudo chown -R www-data:www-data $WP_PATH
