@@ -1459,27 +1459,72 @@ class Wpoven_Cloudshield_Admin
 	/**
 	 * Get all IPs from wp_cloudshield_logs table.
 	 */
-	function cloudshield_load_ip_list()
-	{
+
+	 function cloudshield_load_ip_list() {
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'cloudshield_logs';
+	
+		// Check if table exists
+		$table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+		if (!$table_exists) {
+			error_log('CloudShield Logs table does not exist.');
+			return [];
+		}
+	
+		// Fetch distinct IP addresses
 		$ip_list = $wpdb->get_col("SELECT DISTINCT ip_address FROM $table_name");
+	
+		// Check for SQL errors
 		if ($wpdb->last_error) {
 			error_log('Error fetching IPs: ' . $wpdb->last_error);
 			return [];
 		}
+	
+		// Ensure $ip_list is an array
+		if (!is_array($ip_list)) {
+			return [];
+		}
+	
+		// Filter and sanitize IPs
 		$ip_list = array_filter($ip_list, function ($ip) {
 			return !empty($ip) && filter_var($ip, FILTER_VALIDATE_IP);
 		});
+	
+		// Remove duplicates
 		$ip_list = array_unique($ip_list);
-
+	
+		// Format options for return
 		$ip_options = [];
 		foreach ($ip_list as $ip) {
-			$ip_options[$ip] = $ip; // Key and value are the same (IP address)
+			$ip_options[$ip] = $ip;
 		}
-
+	
 		return $ip_options;
 	}
+	
+
+
+	// function cloudshield_load_ip_list()
+	// {
+	// 	global $wpdb;
+	// 	$table_name = $wpdb->prefix . 'cloudshield_logs';
+	// 	$ip_list = $wpdb->get_col("SELECT DISTINCT ip_address FROM $table_name");
+	// 	if ($wpdb->last_error) {
+	// 		error_log('Error fetching IPs: ' . $wpdb->last_error);
+	// 		return [];
+	// 	}
+	// 	$ip_list = array_filter($ip_list, function ($ip) {
+	// 		return !empty($ip) && filter_var($ip, FILTER_VALIDATE_IP);
+	// 	});
+	// 	$ip_list = array_unique($ip_list);
+
+	// 	$ip_options = [];
+	// 	foreach ($ip_list as $ip) {
+	// 		$ip_options[$ip] = $ip; // Key and value are the same (IP address)
+	// 	}
+
+	// 	return $ip_options;
+	// }
 
 	/**
 	 * Set WPOven CloudShield WAF basic settings.
